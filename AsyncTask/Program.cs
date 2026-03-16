@@ -1,7 +1,7 @@
 ﻿using System;
-using System.Text.Json;
 using System.Threading.Tasks;
 using System.Threading;
+using AsyncTask.Library;
 
 namespace AsyncTask;
 
@@ -44,30 +44,13 @@ public class Program
             return;
         }
 
-        var jsonRespList = new List<ResponseModel>();
-        foreach (var r in resList)
-        {
-            var item = JsonSerializer.Deserialize<ResponseModel>(r);
-            if (item == null)
-            {
-                continue;
-            }
-            jsonRespList.Add(item);
-        }
+        var jsonRespList = ResponseModel.StringToResponseModel(resList);
         
-        var topWords = jsonRespList
-            .SelectMany(c => c.body.Split(new[] { ' ', '.', ',', '!', '?', ';', ':', '-', '\n', '\r', '\t' }, 
-                StringSplitOptions.RemoveEmptyEntries))
-            .Select(word => word.ToLower())
-            .GroupBy(word => word)
-            .Select(group => new { Word = group.Key, Count = group.Count() })
-            .OrderByDescending(x => x.Count)
-            .Take(10)
-            .ToList();
+        var topWords = Utils.ParseTopWords(jsonRespList);
 
         for (int i = 1; i <= 10; ++i)
         {
-            Console.WriteLine($"{i}) {topWords[i - 1].Word}");
+            Console.WriteLine($"{i}) {topWords[i - 1]}");
         }
     }
 
@@ -92,12 +75,9 @@ public class Program
             {
                 if (i == maxRetries)
                 {
+                    semaphore.Release();
                     throw;
                 }
-            }
-            finally
-            {
-                semaphore.Release();
             }
         }
         return "";
